@@ -2,6 +2,7 @@
 package main
 
 import (
+	"C"
 	"errors"
 	"fmt"
 	"io"
@@ -55,6 +56,15 @@ type cmdInvocation struct {
 	node *core.IpfsNode
 }
 
+// Variable to hold command line args when invoked from a C function
+var cmdArgs []string
+
+//export runMain
+func runMain(args string) {
+	cmdArgs = strings.Split(args, " ")
+	main()
+}
+
 // main roadmap:
 // - parse the commandline to get a cmdInvocation
 // - if user requests, help, print it and exit.
@@ -62,6 +72,10 @@ type cmdInvocation struct {
 // - output the response
 // - if anything fails, print error, maybe with help
 func main() {
+	if cmdArgs == nil {
+		cmdArgs = os.Args
+	}
+
 	rand.Seed(time.Now().UnixNano())
 	runtime.GOMAXPROCS(3) // FIXME rm arbitrary choice for n
 	ctx := logging.ContextWithLoggable(context.Background(), logging.Uuid("session"))
@@ -100,13 +114,13 @@ func main() {
 	}
 
 	// Handle `ipfs help'
-	if len(os.Args) == 2 && os.Args[1] == "help" {
+	if len(cmdArgs) == 2 && cmdArgs[1] == "help" {
 		printHelp(false, os.Stdout)
 		os.Exit(0)
 	}
 
 	// parse the commandline into a command invocation
-	parseErr := invoc.Parse(ctx, os.Args[1:])
+	parseErr := invoc.Parse(ctx, cmdArgs[1:])
 
 	// BEFORE handling the parse error, if we have enough information
 	// AND the user requested help, print it out and exit
